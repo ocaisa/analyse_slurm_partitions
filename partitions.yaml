@@ -108,20 +108,17 @@ Karolina GPU:
 
 Leonardo BOOSTER:
   partitions:
+    # EESSI does not work on this partition
     - partition_name: lrd_all_serial
-      # VERIFY: old partitions.json had sapphirerapids; the API (both the
-      # BOOSTER and DCGP offerings) reports Ice Lake
-      # ("2x Intel Whitley (Ice Lake) ICP06 32C 2.4GHz").
       cpu_arch: x86_64/intel/icelake
       gpu_arch: null
     - partition_name: boost_usr_prod
-      cpu_arch: x86_64/intel/icelake # API: "1x Intel Ice Lake Intel Xeon Platinum 8358"
-      gpu_arch: nvidia/cc80 # API: "4x NVIDIA Ampere100 custom, 64GiB HBM2e" (A100 = CC 8.0)
+      cpu_arch: x86_64/intel/icelake
+      gpu_arch: nvidia/cc80
 Leonardo DCGP:
   partitions:
     - partition_name: dcgp_usr_prod
-      # Added from API (Leonardo DCGP offering); missing in old partitions.json.
-      cpu_arch: x86_64/intel/sapphirerapids # API: "2x Intel Saphire Rapids 56 cores, 2.0 GHz"
+      cpu_arch: x86_64/intel/sapphirerapids
       gpu_arch: null
 
 LUMI-C:
