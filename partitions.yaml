@@ -1,10 +1,9 @@
 # Partitions per hosting entity (EFP marketplace offerings).
 #
-# Converted from partitions.json and reconciled with the live API output of
-# allocations_partitions_analyser.py
+# Reconciled with the live API output of allocations_partitions_analyser.py
 # (https://allocations.my-eurohpc.eu/api/marketplace-public-offerings/).
 #
-# - `partition_name` matches the API field name (the old JSON used `name`).
+# - `partition_name` matches the API field name.
 # - Values are normalized to the "arch/family/microarch" convention even where
 #   the API returns free-text descriptions (e.g. "2x AMD EPYC Rome 7H12 64c").
 # - Some items may disagree with the live API and need updating in Allocations
@@ -152,14 +151,14 @@ LUMI-G:
 #    acc_ehpcb        10                       node=100                                 1-00:00:00
 MareNostrum5 ACC:
   partitions:
-    - partition_name: gpp
-      cpu_arch: x86_64/intel/sapphirerapids
-      gpu_arch: null
-MareNostrum5 GPP:
-  partitions:
     - partition_name: acc
       cpu_arch: x86_64/intel/sapphirerapids
       gpu_arch: nvidia/cc90
+MareNostrum5 GPP:
+  partitions:
+    - partition_name: gpp
+      cpu_arch: x86_64/intel/sapphirerapids
+      gpu_arch: null
 
 MeluXina CPU:
   partitions:
