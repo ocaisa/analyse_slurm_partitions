@@ -18,14 +18,13 @@ Arrhenius CPU:
     - partition_name: fat
       cpu_arch: x86_64/amd/zen5
       gpu_arch: null
-
 Arrhenius GPU:
   partitions:
     - partition_name: gpu
       cpu_arch: aarch64/nvidia/grace
       gpu_arch: accel/nvidia/cc90
 
-Deucalion:
+Deucalion CPU ARM:
   partitions:
     - partition_name: dev-arm
       cpu_arch: aarch64/a64fx
@@ -36,6 +35,8 @@ Deucalion:
     - partition_name: large-arm
       cpu_arch: aarch64/a64fx
       gpu_arch: null
+Deucalion CPU X86:
+  partitions:
     - partition_name: dev-x86
       cpu_arch: x86_64/amd/zen2
       gpu_arch: null
@@ -45,6 +46,8 @@ Deucalion:
     - partition_name: large-x86
       cpu_arch: x86_64/amd/zen2
       gpu_arch: null
+Deucalion GPU:
+  partitions:
     - partition_name: dev-a100-40
       cpu_arch: x86_64/amd/zen2
       gpu_arch: nvidia/cc80
@@ -58,7 +61,7 @@ Deucalion:
       cpu_arch: x86_64/amd/zen2
       gpu_arch: nvidia/cc80
 
-Discoverer:
+Discoverer CPU:
   partitions:
     - partition_name: cn
       cpu_arch: x86_64/amd/zen2
@@ -66,14 +69,13 @@ Discoverer:
     - partition_name: fn
       cpu_arch: x86_64/amd/zen2
       gpu_arch: null
-
-Discoverer+:
+Discoverer GPU:
   partitions:
     - partition_name: common
-      cpu_arch: x86_64/intel/sapphirerapids # VERIFY: not reported by the API
-      gpu_arch: nvidia/cc90 # VERIFY: not reported by the API
+      cpu_arch: x86_64/intel/sapphirerapids # Taken from node specs (DGX H200)
+      gpu_arch: nvidia/cc90 # Taken from node specs (DGX H200)
 
-JUPITER:
+JUPITER Booster:
   partitions:
     - partition_name: booster
       cpu_arch: aarch64/nvidia/grace
@@ -82,7 +84,7 @@ JUPITER:
       cpu_arch: aarch64/nvidia/grace
       gpu_arch: nvidia/cc90
 
-Karolina:
+Karolina CPU:
   partitions:
     - partition_name: qcpu
       cpu_arch: x86_64/amd/zen2
@@ -93,6 +95,8 @@ Karolina:
     - partition_name: qcpu_long
       cpu_arch: x86_64/amd/zen2
       gpu_arch: null
+Karolina GPU:
+  partitions:
     - partition_name: qgpu
       cpu_arch: x86_64/amd/zen3
       gpu_arch: nvidia/cc80
@@ -103,7 +107,7 @@ Karolina:
       cpu_arch: x86_64/amd/zen3
       gpu_arch: nvidia/cc80
 
-Leonardo:
+Leonardo BOOSTER:
   partitions:
     - partition_name: lrd_all_serial
       # VERIFY: old partitions.json had sapphirerapids; the API (both the
@@ -114,12 +118,14 @@ Leonardo:
     - partition_name: boost_usr_prod
       cpu_arch: x86_64/intel/icelake # API: "1x Intel Ice Lake Intel Xeon Platinum 8358"
       gpu_arch: nvidia/cc80 # API: "4x NVIDIA Ampere100 custom, 64GiB HBM2e" (A100 = CC 8.0)
+Leonardo DCGP:
+  partitions:
     - partition_name: dcgp_usr_prod
       # Added from API (Leonardo DCGP offering); missing in old partitions.json.
       cpu_arch: x86_64/intel/sapphirerapids # API: "2x Intel Saphire Rapids 56 cores, 2.0 GHz"
       gpu_arch: null
 
-LUMI:
+LUMI-C:
   partitions:
     - partition_name: standard
       cpu_arch: x86_64/amd/zen3
@@ -127,74 +133,66 @@ LUMI:
     - partition_name: interactive
       cpu_arch: x86_64/amd/zen3
       gpu_arch: null
+LUMI-G:
+  partitions:
     - partition_name: standard-g
       cpu_arch: x86_64/amd/zen3
       gpu_arch: amd/gfx90a
 
-MareNostrum5:
-  # At BSC, they are not really partitions, they are QoS
-  # [ugen353151@alogin1 ~]$ sacctmgr list qos format=Name,Priority,MaxTRES%30,MaxTRESPerUser%30,MaxWall | grep ehpc
-  #    gp_ehpc         100            cpu=179200,node=800                                 3-00:00:00
-  #    gp_xehpc         50           cpu=458752,node=2048                                 3-00:00:00
-  #    acc_ehpc        100             cpu=16000,node=100                                 3-00:00:00
-  #    acc_xehpc        50             cpu=81920,node=512                                 3-00:00:00
-  #    gp_ehpcb         10             cpu=40000,node=800                                 1-00:00:00
-  #    acc_ehpcb        10                       node=100                                 1-00:00:00
+# At BSC, access to partitions is restricted based on QoS (which you are required to give)
+# [ugen353151@alogin1 ~]$ scontrol show partitions
+#   ...
+# I only list the partitions that allow EuroHPC QoS:
+# [ugen353151@alogin1 ~]$ sacctmgr list qos format=Name,Priority,MaxTRES%30,MaxTRESPerUser%30,MaxWall | grep ehpc
+#    gp_ehpc         100            cpu=179200,node=800                                 3-00:00:00
+#    gp_xehpc         50           cpu=458752,node=2048                                 3-00:00:00
+#    acc_ehpc        100             cpu=16000,node=100                                 3-00:00:00
+#    acc_xehpc        50             cpu=81920,node=512                                 3-00:00:00
+#    gp_ehpcb         10             cpu=40000,node=800                                 1-00:00:00
+#    acc_ehpcb        10                       node=100                                 1-00:00:00
+MareNostrum5 ACC:
   partitions:
-    - partition_name: gp_ehpc
-      # VERIFY: API reports uppercase `GPP`; old partitions.json had `gpp`.
+    - partition_name: gpp
       cpu_arch: x86_64/intel/sapphirerapids
-      # VERIFY: API reports bare `x86_64` and its software catalog lists
-      # microarchitecture `skylake_avx512`, contradicting sapphirerapids.
       gpu_arch: null
-    - partition_name: ACC
-      # VERIFY: API reports uppercase `ACC`; old partitions.json had `acc`.
+MareNostrum5 GPP:
+  partitions:
+    - partition_name: acc
       cpu_arch: x86_64/intel/sapphirerapids
-      # VERIFY: API reports bare `x86_64`, catalog microarch `skylake_avx512`.
       gpu_arch: nvidia/cc90
-    - partition_name: hbm
-      cpu_arch: x86_64/intel/sapphirerapids
-      # VERIFY: API reports bare `x86_64`, catalog microarch `skylake_avx512`.
-      gpu_arch: null
-    - partition_name: ngpp
-      # Added from API (MareNostrum5 NG-GPP offering); missing in old partitions.json.
-      cpu_arch: aarch64
-      gpu_arch: null
 
-MeluXina:
+MeluXina CPU:
   partitions:
     - partition_name: cpu
-      cpu_arch: x86_64/amd/zen2 # API: "2x AMD EPYC Rome 7H12 64c @ 2.6GHz" (Rome = Zen 2)
+      cpu_arch: x86_64/amd/zen2
       gpu_arch: null
-    - partition_name: gpu
-      cpu_arch: x86_64/amd/zen2 # API: "2x AMD EPYC Rome 7452 32c @2.35GHz" (Rome = Zen 2)
-      gpu_arch: nvidia/cc80 # API: "4x NVIDIA Ampere 40GB HBM" (A100 = CC 8.0)
+MeluXina FPGA:
+  partitions:
     - partition_name: fpga
-      # Added from API (MeluXina FPGA offering); missing in old partitions.json.
-      cpu_arch: x86_64/amd/zen2 # API: "2x AMD EPYC Rome 7452 32c @2.35GHz"
-      gpu_arch: intel/stratix10 # VERIFY: not a standard value; API reports "2x Intel Stratix 10MX 16GB HBM" (Intel FPGA, not a GPU)
+      cpu_arch: x86_64/amd/zen2
+      gpu_arch: null
+MeluXina GPU:
+  partitions:
+    - partition_name: gpu
+      cpu_arch: x86_64/amd/zen2
+      gpu_arch: nvidia/cc80
 
-Vega:
+Vega CPU:
   partitions:
     - partition_name: cpu
       cpu_arch: x86_64/amd/zen2
       gpu_arch: null
     - partition_name: longcpu
-      # Added from API (Vega CPU offering); missing in old partitions.json.
       cpu_arch: x86_64/amd/zen2
       gpu_arch: null
     - partition_name: largemem
-      # Added from API (Vega CPU offering); missing in old partitions.json.
       cpu_arch: x86_64/amd/zen2
       gpu_arch: null
     - partition_name: dev
       cpu_arch: x86_64/amd/zen2
       gpu_arch: null
+Vega GPU:
+  partitions:
     - partition_name: gpu
-      cpu_arch: x86_64/amd/zen2
-      gpu_arch: nvidia/cc80
-    - partition_name: dev
-      # VERIFY: name collides with the CPU `dev` partition above; the API lists
-      # `dev` in both the Vega CPU and Vega GPU offerings.
       cpu_arch: x86_64/amd/zen2
       gpu_arch: nvidia/cc80
