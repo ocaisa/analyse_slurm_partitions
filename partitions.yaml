@@ -14,97 +14,121 @@ Arrhenius CPU:
     - partition_name: cpu
       cpu_arch: x86_64/amd/zen5
       gpu_arch: null
+      qos: []
     - partition_name: fat
       cpu_arch: x86_64/amd/zen5
       gpu_arch: null
+      qos: []
 Arrhenius GPU:
   partitions:
     - partition_name: gpu
       cpu_arch: aarch64/nvidia/grace
       gpu_arch: accel/nvidia/cc90
+      qos: []
 
 Deucalion CPU ARM:
   partitions:
     - partition_name: dev-arm
       cpu_arch: aarch64/a64fx
       gpu_arch: null
+      qos: []
     - partition_name: normal-arm
       cpu_arch: aarch64/a64fx
       gpu_arch: null
+      qos: []
     - partition_name: large-arm
       cpu_arch: aarch64/a64fx
       gpu_arch: null
+      qos: []
 Deucalion CPU X86:
   partitions:
     - partition_name: dev-x86
       cpu_arch: x86_64/amd/zen2
       gpu_arch: null
+      qos: []
     - partition_name: normal-x86
       cpu_arch: x86_64/amd/zen2
       gpu_arch: null
+      qos: []
     - partition_name: large-x86
       cpu_arch: x86_64/amd/zen2
       gpu_arch: null
+      qos: []
 Deucalion GPU:
   partitions:
     - partition_name: dev-a100-40
       cpu_arch: x86_64/amd/zen2
       gpu_arch: nvidia/cc80
+      qos: []
     - partition_name: normal-a100-40
       cpu_arch: x86_64/amd/zen2
       gpu_arch: nvidia/cc80
+      qos: []
     - partition_name: dev-a100-80
       cpu_arch: x86_64/amd/zen2
       gpu_arch: nvidia/cc80
+      qos: []
     - partition_name: normal-a100-80
       cpu_arch: x86_64/amd/zen2
       gpu_arch: nvidia/cc80
+      qos: []
 
 Discoverer CPU:
   partitions:
     - partition_name: cn
       cpu_arch: x86_64/amd/zen2
       gpu_arch: null
+      qos: []
     - partition_name: fn
       cpu_arch: x86_64/amd/zen2
       gpu_arch: null
+      qos: []
 Discoverer GPU:
   partitions:
     - partition_name: common
       cpu_arch: x86_64/intel/sapphirerapids # Taken from node specs (DGX H200)
       gpu_arch: nvidia/cc90 # Taken from node specs (DGX H200)
+      qos: []
 
 JUPITER Booster:
   partitions:
     - partition_name: booster
       cpu_arch: aarch64/nvidia/grace
       gpu_arch: nvidia/cc90
+      qos: []
     - partition_name: largebooster
       cpu_arch: aarch64/nvidia/grace
       gpu_arch: nvidia/cc90
+      qos: []
 
 Karolina CPU:
   partitions:
     - partition_name: qcpu
       cpu_arch: x86_64/amd/zen2
       gpu_arch: null
+      qos: []
     - partition_name: qcpu_exp
       cpu_arch: x86_64/amd/zen2
       gpu_arch: null
+      qos: []
     - partition_name: qcpu_long
       cpu_arch: x86_64/amd/zen2
       gpu_arch: null
+      qos: []
 Karolina GPU:
   partitions:
     - partition_name: qgpu
       cpu_arch: x86_64/amd/zen3
       gpu_arch: nvidia/cc80
+      qos: []
     - partition_name: qgpu_exp
       cpu_arch: x86_64/amd/zen3
       gpu_arch: nvidia/cc80
+      qos: []
     - partition_name: qgpu_big
       cpu_arch: x86_64/amd/zen3
       gpu_arch: nvidia/cc80
+      qos: []
 
 Leonardo BOOSTER:
   partitions:
@@ -112,28 +136,34 @@ Leonardo BOOSTER:
     - partition_name: lrd_all_serial
       cpu_arch: x86_64/intel/icelake
       gpu_arch: null
+      qos: []
     - partition_name: boost_usr_prod
       cpu_arch: x86_64/intel/icelake
       gpu_arch: nvidia/cc80
+      qos: []
 Leonardo DCGP:
   partitions:
     - partition_name: dcgp_usr_prod
       cpu_arch: x86_64/intel/sapphirerapids
       gpu_arch: null
+      qos: []
 
 LUMI-C:
   partitions:
     - partition_name: standard
       cpu_arch: x86_64/amd/zen3
       gpu_arch: null
+      qos: []
     - partition_name: interactive
       cpu_arch: x86_64/amd/zen3
       gpu_arch: null
+      qos: []
 LUMI-G:
   partitions:
     - partition_name: standard-g
       cpu_arch: x86_64/amd/zen3
       gpu_arch: amd/gfx90a
+      qos: []
 
 # At BSC, access to partitions is restricted based on QoS (which you are required to give)
 # [ugen353151@alogin1 ~]$ scontrol show partitions
@@ -151,44 +181,58 @@ MareNostrum5 ACC:
     - partition_name: acc
       cpu_arch: x86_64/intel/sapphirerapids
       gpu_arch: nvidia/cc90
+      qos:
+        - acc_ehpc
+        - acc_xehpc
 MareNostrum5 GPP:
   partitions:
     - partition_name: gpp
       cpu_arch: x86_64/intel/sapphirerapids
       gpu_arch: null
+      qos:
+        - gp_ehpc
+        - gp_xehpc
 
 MeluXina CPU:
   partitions:
     - partition_name: cpu
       cpu_arch: x86_64/amd/zen2
       gpu_arch: null
+      qos: []
 MeluXina FPGA:
   partitions:
     - partition_name: fpga
       cpu_arch: x86_64/amd/zen2
       gpu_arch: null
+      qos: []
 MeluXina GPU:
   partitions:
     - partition_name: gpu
       cpu_arch: x86_64/amd/zen2
       gpu_arch: nvidia/cc80
+      qos: []
 
 Vega CPU:
   partitions:
     - partition_name: cpu
       cpu_arch: x86_64/amd/zen2
       gpu_arch: null
+      qos: []
     - partition_name: longcpu
       cpu_arch: x86_64/amd/zen2
       gpu_arch: null
+      qos: []
     - partition_name: largemem
       cpu_arch: x86_64/amd/zen2
       gpu_arch: null
+      qos: []
     - partition_name: dev
       cpu_arch: x86_64/amd/zen2
       gpu_arch: null
+      qos: []
 Vega GPU:
   partitions:
     - partition_name: gpu
       cpu_arch: x86_64/amd/zen2
       gpu_arch: nvidia/cc80
+      qos: []
