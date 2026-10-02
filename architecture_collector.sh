@@ -8,6 +8,7 @@ ARCHDETECT_SRUN_OPTIONS=${ARCHDETECT_SRUN_OPTIONS:-}
 
 command -v python3 >/dev/null 2>&1 || { echo "ERROR: python3 not found" >&2; exit 1; }
 command -v srun >/dev/null 2>&1 || { echo "ERROR: srun not found" >&2; exit 1; }
+command -v timeout >/dev/null 2>&1 || { echo "ERROR: timeout not found" >&2; exit 1; }
 [[ -f "$OPTIONS_YAML" ]] || { echo "ERROR: options YAML not found: $OPTIONS_YAML" >&2; exit 1; }
 
 TMPDIR_LOCAL=$(mktemp -d)
@@ -179,21 +180,27 @@ if (( TOTAL_PARTITIONS > 0 )); then
         DETECTION_SCRIPT="if [[ ! -f \"$EESSI_ARCHDETECT\" ]]; then echo \"__EESSI_ERROR__EESSI architecture detection script not found: $EESSI_ARCHDETECT\" >&2; exit 100; fi; if [[ ! -x \"$EESSI_ARCHDETECT\" ]]; then echo \"__EESSI_ERROR__EESSI architecture detection script is not executable: $EESSI_ARCHDETECT\" >&2; exit 100; fi; CPU=\$(\"$EESSI_ARCHDETECT\" cpupath); CPU_STATUS=\$?; if [[ \"\$CPU_STATUS\" -ne 0 || -z \"\$CPU\" ]]; then echo \"__EESSI_ERROR__CPU architecture detection failed with exit code \$CPU_STATUS\" >&2; exit 101; fi; ACCEL=\$(\"$EESSI_ARCHDETECT\" accelpath 2>/dev/null); ACCEL_STATUS=\$?; if [[ \"\$ACCEL_STATUS\" -ne 0 ]]; then ACCEL=\"\"; fi; printf '__EESSI_CPU__%s\\n' \"\$CPU\"; printf '__EESSI_ACCEL__%s\\n' \"\$ACCEL\""
 
         set +e
-        OUTPUT=$(srun "${BASE_SRUN_ARGS[@]}" "${EXTRA_SRUN_ARGS[@]}" bash -lc "$DETECTION_SCRIPT" </dev/null 2>&1)
+        OUTPUT=$(timeout --signal=TERM --kill-after=10s 5m srun "${BASE_SRUN_ARGS[@]}" "${EXTRA_SRUN_ARGS[@]}" bash -lc "$DETECTION_SCRIPT" </dev/null 2>&1)
         SRUN_STATUS=$?
         set -e
 
+        if (( SRUN_STATUS == 124 )); then
+            FAILED_PARTITIONS=$((FAILED_PARTITIONS + 1))
+            printf '%s\t%s\t%s\n' "$PARTITION" "timeout" "$OUTPUT" >> "$FAILURES_TSV"
+            echo "TIMEOUT: architecture detection exceeded 5 minutes for partition: $PARTITION" >&2
+            echo "Skipping partition; it can be retried on a later run." >&2
+            echo >&2
+            continue
+        fi
+
         if (( SRUN_STATUS != 0 )); then
             FAILED_PARTITIONS=$((FAILED_PARTITIONS + 1))
-
             printf '%s\t%s\t%s\n' "$PARTITION" "$SRUN_STATUS" "$OUTPUT" >> "$FAILURES_TSV"
-
             echo "ERROR: architecture detection failed for partition: $PARTITION" >&2
             echo "ERROR: srun exit code: $SRUN_STATUS" >&2
             echo "ERROR: srun output:" >&2
             printf '%s\n' "$OUTPUT" >&2
             echo >&2
-
             continue
         fi
 
