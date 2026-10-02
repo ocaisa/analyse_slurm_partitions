@@ -781,7 +781,7 @@ while IFS= read -r RECORD; do
         fi
     fi
 
-    if [[ -n "$GPU_PER_NODE" ]]; then
+    if [[ -n "$GPU_PER_NODE" && "$GPU_PER_NODE" =~ ^[0-9]+$ && "$GPU_PER_NODE" -gt 0 ]]; then
         MIN_GPUS=${MIN_GPU:-1}
         MAX_GPUS=$((MAX_NODES * GPU_PER_NODE))
 
