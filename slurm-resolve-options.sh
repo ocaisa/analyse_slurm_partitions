@@ -526,39 +526,39 @@ emit_allocation() {
         fi
     fi
 
-    printf '      %s:\n' "$name"
-    printf '        # Calculated allocation before selecting a CPU request style.\n'
-    printf '        nodes: %s\n' "$nodes"
-    printf '        cpus: %s\n' "$cpus"
+    printf '    %s:\n' "$name"
+    printf '      # Calculated allocation before selecting a CPU request style.\n'
+    printf '      nodes: %s\n' "$nodes"
+    printf '      cpus: %s\n' "$cpus"
 
     if [[ -n "$walltime" ]]; then
-        printf '        walltime: '
+        printf '      walltime: '
         yaml_quote "$walltime"
         printf '\n'
     else
-        printf '        walltime: null\n'
+        printf '      walltime: null\n'
     fi
 
     if [[ -n "$GPU_PER_NODE" && "$GPU_PER_NODE" =~ ^[0-9]+$ && "$GPU_PER_NODE" -gt 0 ]]; then
-        printf '        gpu:\n'
+        printf '      gpu:\n'
 
         if [[ -z "$gpu_per_node" ]]; then
-            printf '          valid: false\n'
-            printf '          reason: '
+            printf '        valid: false\n'
+            printf '        reason: '
             yaml_quote "No uniform GPU-per-node allocation can satisfy the requested GPU constraint."
             printf '\n'
         else
-            printf '          valid: true\n'
-            printf '          gpus_per_node: %s\n' "$gpu_per_node"
-            printf '          total_gpus: %s\n' "$((nodes * gpu_per_node))"
+            printf '        valid: true\n'
+            printf '        gpus_per_node: %s\n' "$gpu_per_node"
+            printf '        total_gpus: %s\n' "$((nodes * gpu_per_node))"
         fi
     fi
 
-    printf '        cpu_options:\n'
+    printf '      cpu_options:\n'
 
     CPU_LAYOUT_MODE="$gpu_mode"
-    emit_cpu_option_ntasks "$partition" "$account" "$qos" "$nodes" "$cpus" "$walltime" "$gpu_per_node" 10
-    emit_cpu_option_cpus_per_task "$partition" "$account" "$qos" "$cpus" "$min_nodes" "$max_nodes" "$max_cpus_per_node" "$walltime" "$gpu_per_node" 10
+    emit_cpu_option_ntasks "$partition" "$account" "$qos" "$nodes" "$cpus" "$walltime" "$gpu_per_node" 8
+    emit_cpu_option_cpus_per_task "$partition" "$account" "$qos" "$cpus" "$min_nodes" "$max_nodes" "$max_cpus_per_node" "$walltime" "$gpu_per_node" 8
 }
 
 DATA=$(jq -n --arg partition "$PARTITION" --slurpfile slurm "$SLURM_JSON" --slurpfile user "$USER_JSON" '
