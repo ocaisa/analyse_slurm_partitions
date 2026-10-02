@@ -2,6 +2,7 @@
 set -euo pipefail
 
 USER_NAME=${USER:?USER is not set}
+ACCOUNT=${ACCOUNT:-}
 
 printf '{\n'
 printf '  "user": "%s",\n' "$USER_NAME"
@@ -32,7 +33,13 @@ while IFS='|' read -r account qos default_qos; do
     printf '],\n'
     printf '      "default_qos": "%s"\n' "${default_qos:-}"
     printf '    }'
-done < <(sacctmgr show assoc where user="$USER_NAME" format=Account,Qos,DefaultQos -n -P 2>/dev/null | awk -F'|' '!seen[$1 FS $2 FS $3]++')
+done < <(
+    if [[ -n "$ACCOUNT" ]]; then
+        sacctmgr show assoc where user="$USER_NAME" account="$ACCOUNT" format=Account,Qos,DefaultQos -n -P 2>/dev/null
+    else
+        sacctmgr show assoc where user="$USER_NAME" format=Account,Qos,DefaultQos -n -P 2>/dev/null
+    fi | awk -F'|' '!seen[$1 FS $2 FS $3]++'
+)
 
 printf '\n  ]\n'
 printf '}\n'
