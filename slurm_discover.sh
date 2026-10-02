@@ -8,7 +8,7 @@ set -euo pipefail
 # This script runs the complete discovery pipeline:
 #
 #   1. Collect the user's private account/QOS information.
-#   2. Collect the user's Slurm configuration as YAML.
+#   2. Collect the user's Slurm configuration as YAML, unless it already exists.
 #   3. Convert the YAML into generic JSON.
 #   4. Resolve the generic JSON into concrete job options.
 #   5. Detect CPU/accelerator architectures on the available partitions.
@@ -185,23 +185,28 @@ echo "Created: $USER_JSON"
 # get_slurm_data.sh creates the YAML representation of the user's Slurm
 # configuration.
 #
+# If slurm.yaml already exists, it is reused instead of querying Slurm again.
+#
 # Its interface is:
 #
 #   get_slurm_data.sh USER [ACCOUNT]
 #
-# The YAML is retained because it is the source for both the initial and
-# filtered JSON conversions.
 # ----------------------------------------------------------------------------
 
 step "2/7: Collecting Slurm configuration"
 
-if [[ -n "$ACCOUNT" ]]; then
-    ./get_slurm_data.sh "$USER_NAME" "$ACCOUNT" > "$SLURM_YAML"
+if [[ -f "$SLURM_YAML" ]]; then
+    echo "Existing Slurm YAML found: $SLURM_YAML"
+    echo "Skipping Slurm configuration discovery."
 else
-    ./get_slurm_data.sh "$USER_NAME" > "$SLURM_YAML"
-fi
+    if [[ -n "$ACCOUNT" ]]; then
+        ./get_slurm_data.sh "$USER_NAME" "$ACCOUNT" > "$SLURM_YAML"
+    else
+        ./get_slurm_data.sh "$USER_NAME" > "$SLURM_YAML"
+    fi
 
-echo "Created: $SLURM_YAML"
+    echo "Created: $SLURM_YAML"
+fi
 
 # ----------------------------------------------------------------------------
 # Stage 3: convert YAML to initial generic JSON.
