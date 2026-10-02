@@ -152,7 +152,7 @@ if (( SKIPPED_PARTITIONS > 0 )); then
 fi
 
 if (( TOTAL_PARTITIONS > 0 )); then
-    while IFS=$'\t' read -r PARTITION COMMAND; do
+    while IFS=$'\t' read -r PARTITION COMMAND <&3; do
         [[ -n "$PARTITION" ]] || continue
         [[ -n "$COMMAND" ]] || continue
 
@@ -177,9 +177,9 @@ if (( TOTAL_PARTITIONS > 0 )); then
         # EESSI architecture detection script is pure bash, safe to use any system
         EESSI_ARCHDETECT=${EESSI_ARCHDETECT:-/cvmfs/software.eessi.io/versions/2026.06/init/eessi_archdetect.sh}
         DETECTION_SCRIPT="if [[ ! -f \"$EESSI_ARCHDETECT\" ]]; then echo \"__EESSI_ERROR__EESSI architecture detection script not found: $EESSI_ARCHDETECT\" >&2; exit 100; fi; if [[ ! -x \"$EESSI_ARCHDETECT\" ]]; then echo \"__EESSI_ERROR__EESSI architecture detection script is not executable: $EESSI_ARCHDETECT\" >&2; exit 100; fi; CPU=\$(\"$EESSI_ARCHDETECT\" cpupath); CPU_STATUS=\$?; if [[ \"\$CPU_STATUS\" -ne 0 || -z \"\$CPU\" ]]; then echo \"__EESSI_ERROR__CPU architecture detection failed with exit code \$CPU_STATUS\" >&2; exit 101; fi; ACCEL=\$(\"$EESSI_ARCHDETECT\" accelpath 2>/dev/null); ACCEL_STATUS=\$?; if [[ \"\$ACCEL_STATUS\" -ne 0 ]]; then ACCEL=\"\"; fi; printf '__EESSI_CPU__%s\\n' \"\$CPU\"; printf '__EESSI_ACCEL__%s\\n' \"\$ACCEL\""
-        
+
         set +e
-        OUTPUT=$(srun "${BASE_SRUN_ARGS[@]}" "${EXTRA_SRUN_ARGS[@]}" bash -lc "$DETECTION_SCRIPT" 2>&1)
+        OUTPUT=$(srun "${BASE_SRUN_ARGS[@]}" "${EXTRA_SRUN_ARGS[@]}" bash -lc "$DETECTION_SCRIPT" </dev/null 2>&1)
         SRUN_STATUS=$?
         set -e
 
@@ -232,7 +232,7 @@ if (( TOTAL_PARTITIONS > 0 )); then
         fi
 
         echo >&2
-    done < "$COMMANDS_TSV"
+    done 3< "$COMMANDS_TSV"
 fi
 
 python3 - "$OUTPUT_JSON" "$RESULTS_TSV" <<'PY'
@@ -292,10 +292,12 @@ with open(temporary_path, "w", encoding="utf-8") as fh:
 os.replace(temporary_path, architecture_path)
 PY
 
+PROCESSED_PARTITIONS=$((SUCCESSFUL_PARTITIONS + FAILED_PARTITIONS))
+
 echo "============================================================" >&2
 echo "Architecture detection summary" >&2
 echo "============================================================" >&2
-echo "New partitions processed: $((TOTAL_PARTITIONS + SUCCESSFUL_PARTITIONS + FAILED_PARTITIONS - TOTAL_PARTITIONS))" >&2
+echo "New partitions processed: $PROCESSED_PARTITIONS" >&2
 echo "Successful this run:     $SUCCESSFUL_PARTITIONS" >&2
 echo "Failed this run:         $FAILED_PARTITIONS" >&2
 echo "Already present/skipped: $SKIPPED_PARTITIONS" >&2
