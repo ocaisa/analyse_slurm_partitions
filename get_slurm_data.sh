@@ -208,6 +208,7 @@ sample_partition_hardware() {
     local have_reference=0
 
     HW_AVAILABLE=0
+    HW_NODE_COUNT=""
     HW_SOCKETS=""
     HW_CORES_PER_SOCKET=""
     HW_THREADS_PER_CORE=""
@@ -220,6 +221,8 @@ sample_partition_hardware() {
     expanded=$(scontrol show hostnames "$nodes_expr" 2>/dev/null || true)
 
     [[ -z "$expanded" ]] && return 0
+
+    HW_NODE_COUNT=$(printf '%s\n' "$expanded" | awk 'NF{n++} END{print n+0}')
 
     while IFS= read -r node; do
         [[ -z "$node" ]] && continue
@@ -253,9 +256,76 @@ sample_partition_hardware() {
     HW_AVAILABLE=1
 }
 
-# ---------------------------------------------------------------------------
-# Validate user
-# ---------------------------------------------------------------------------
+emit_tres_constraints() {
+    local tres=${1:-}
+    local indent=${2:-14}
+    local item key value
+    local padding
+
+    [[ -z "$tres" || "$tres" == "NONE" ]] && return 0
+
+    padding=$(printf '%*s' "$indent" '')
+
+    IFS=',' read -r -a _tres_items <<< "$tres"
+
+    for item in "${_tres_items[@]}"; do
+        item=$(trim "$item")
+        [[ -z "$item" ]] && continue
+
+        if [[ "$item" != *=* ]]; then
+            continue
+        fi
+
+        key=${item%%=*}
+        value=${item#*=}
+
+        key=$(trim "$key")
+        value=$(trim "$value")
+
+        [[ -z "$key" || -z "$value" ]] && continue
+
+        case "$key" in
+            cpu|node)
+                if [[ "$value" =~ ^[0-9]+$ ]]; then
+                    printf '%s%s: %s\n' "$padding" "$key" "$value"
+                else
+                    printf '%s%s: ' "$padding" "$key"
+                    yaml_quote "$value"
+                    printf '\n'
+                fi
+                ;;
+            gres/gpu|gpu)
+                if [[ "$value" =~ ^[0-9]+$ ]]; then
+                    printf '%sgpu: %s\n' "$padding" "$value"
+                else
+                    printf '%sgpu: ' "$padding"
+                    yaml_quote "$value"
+                    printf '\n'
+                fi
+                ;;
+            mem|memory)
+                if memory_mib=$(memory_to_mib "$value"); then
+                    printf '%smemory_mib: %s\n' "$padding" "$memory_mib"
+                else
+                    printf '%smemory: ' "$padding"
+                    yaml_quote "$value"
+                    printf '\n'
+                fi
+                ;;
+            *)
+                printf '%s' "$padding"
+                yaml_quote "$key"
+                printf ': '
+                if [[ "$value" =~ ^[0-9]+$ ]]; then
+                    printf '%s\n' "$value"
+                else
+                    yaml_quote "$value"
+                    printf '\n'
+                fi
+                ;;
+        esac
+    done
+}
 
 if ! id "$USER_NAME" >/dev/null 2>&1; then
     echo "Unknown user: $USER_NAME" >&2
@@ -263,10 +333,6 @@ if ! id "$USER_NAME" >/dev/null 2>&1; then
 fi
 
 USER_GROUPS=$(id -Gn "$USER_NAME" 2>/dev/null || true)
-
-# ---------------------------------------------------------------------------
-# Cluster configuration
-# ---------------------------------------------------------------------------
 
 CONFIG=$(scontrol show config 2>/dev/null || true)
 
@@ -290,10 +356,6 @@ case "${SELECT_TYPE_PARAMETERS^^}" in
         CPU_GRANULARITY="core"
         ;;
 esac
-
-# ---------------------------------------------------------------------------
-# User associations
-# ---------------------------------------------------------------------------
 
 ASSOC_RAW=$(sacctmgr show assoc where user="$USER_NAME" format=Cluster,Account,User,DefaultAccount,Qos,DefaultQos -n -P 2>/dev/null || true)
 
@@ -327,10 +389,6 @@ if [[ -n "$ACCOUNT_FILTER" ]]; then
     fi
 fi
 
-# ---------------------------------------------------------------------------
-# QOS definitions
-# ---------------------------------------------------------------------------
-
 QOS_RAW=$(sacctmgr show qos format=Name,MinTRES,MaxTRESPerJob,MaxWall -n -P 2>/dev/null || true)
 
 declare -A QOS_EXISTS=()
@@ -347,10 +405,6 @@ while IFS='|' read -r qos_name min_tres max_tres max_wall; do
     QOS_MAX_WALL["$qos_name"]=${max_wall:-}
 done <<< "$QOS_RAW"
 
-# ---------------------------------------------------------------------------
-# Partition definitions
-# ---------------------------------------------------------------------------
-
 PARTITIONS_RAW=$(scontrol show partition -o 2>/dev/null || true)
 
 declare -A PARTITION_LINE=()
@@ -363,10 +417,6 @@ while IFS= read -r line; do
 
     PARTITION_LINE["$partition"]=$line
 done <<< "$PARTITIONS_RAW"
-
-# ---------------------------------------------------------------------------
-# Effective QOS for account + partition
-# ---------------------------------------------------------------------------
 
 effective_qos_for_partition() {
     local account=$1
@@ -421,10 +471,6 @@ effective_qos_for_partition() {
     fi
 }
 
-# ---------------------------------------------------------------------------
-# Partition account/group access
-# ---------------------------------------------------------------------------
-
 partition_account_allowed() {
     local account=$1
     local line=$2
@@ -463,10 +509,6 @@ partition_account_allowed() {
     return 0
 }
 
-# ---------------------------------------------------------------------------
-# YAML header
-# ---------------------------------------------------------------------------
-
 printf 'id: '
 yaml_quote "$USER_NAME"
 printf '\n'
@@ -482,10 +524,6 @@ yaml_quote "$DEFAULT_ACCOUNT"
 printf '\n'
 
 printf 'accounts:\n'
-
-# ---------------------------------------------------------------------------
-# Emit account
-# ---------------------------------------------------------------------------
 
 emit_account() {
     local account=$1
@@ -508,6 +546,7 @@ emit_account() {
     local qos
     local memory_request memory_source
     local def_mem_mib def_mem_cpu_mib
+    local partition_node_count
     local -a effective_qos=()
 
     while IFS= read -r partition; do
@@ -540,22 +579,9 @@ emit_account() {
             whole_node=true
         fi
 
-        # ---------------------------------------------------------------
-        # Probe representative nodes.
-        # ---------------------------------------------------------------
-
         sample_partition_hardware "$nodes_expr"
 
-        # ---------------------------------------------------------------
-        # Request memory.
-        #
-        # Priority:
-        #
-        # 1. DefMemPerNode / physical cores_per_node
-        # 2. DefMemPerCPU
-        #
-        # RealMemory is deliberately NOT used for request calculation.
-        # ---------------------------------------------------------------
+        partition_node_count=$HW_NODE_COUNT
 
         memory_request=""
         memory_source=""
@@ -574,17 +600,9 @@ emit_account() {
             fi
         fi
 
-        # ---------------------------------------------------------------
-        # Partition key: emitted exactly once.
-        # ---------------------------------------------------------------
-
         printf '      '
         yaml_quote "$partition"
         printf ':\n'
-
-        # ---------------------------------------------------------------
-        # QOS
-        # ---------------------------------------------------------------
 
         printf '        qos:\n'
 
@@ -597,15 +615,13 @@ emit_account() {
                 printf '            constraints:\n'
 
                 if [[ -n "${QOS_MIN[$qos]:-}" ]]; then
-                    printf '              min: '
-                    yaml_quote "${QOS_MIN[$qos]}"
-                    printf '\n'
+                    printf '              min:\n'
+                    emit_tres_constraints "${QOS_MIN[$qos]}" 16
                 fi
 
                 if [[ -n "${QOS_MAX[$qos]:-}" ]]; then
-                    printf '              max: '
-                    yaml_quote "${QOS_MAX[$qos]}"
-                    printf '\n'
+                    printf '              max:\n'
+                    emit_tres_constraints "${QOS_MAX[$qos]}" 16
                 fi
 
                 if [[ -n "${QOS_MAX_WALL[$qos]:-}" ]]; then
@@ -614,12 +630,10 @@ emit_account() {
                     yaml_quote "${QOS_MAX_WALL[$qos]}"
                     printf '\n'
                 fi
+            else
+                printf '            constraints: {}\n'
             fi
         done
-
-        # ---------------------------------------------------------------
-        # Hardware
-        # ---------------------------------------------------------------
 
         if (( HW_AVAILABLE )); then
             printf '        hardware:\n'
@@ -649,10 +663,6 @@ emit_account() {
             fi
         fi
 
-        # ---------------------------------------------------------------
-        # Request
-        # ---------------------------------------------------------------
-
         printf '        request:\n'
 
         printf '          whole_node:\n'
@@ -674,11 +684,11 @@ emit_account() {
             printf '\n'
         fi
 
-        # ---------------------------------------------------------------
-        # Partition metadata
-        # ---------------------------------------------------------------
-
         printf '        partition:\n'
+
+        if [[ -n "$partition_node_count" && "$partition_node_count" =~ ^[0-9]+$ ]]; then
+            printf '          node_count: %s\n' "$partition_node_count"
+        fi
 
         if [[ -n "$max_nodes" ]]; then
             printf '          max_nodes: '
@@ -701,10 +711,6 @@ emit_account() {
         printf '          whole_node: %s\n' "$whole_node"
     done < <(printf '%s\n' "${!PARTITION_LINE[@]}" | sort)
 }
-
-# ---------------------------------------------------------------------------
-# Select accounts
-# ---------------------------------------------------------------------------
 
 declare -a OUTPUT_ACCOUNTS=()
 
