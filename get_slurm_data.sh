@@ -209,6 +209,7 @@ get_node_hardware() {
 
     gpus=$(get_gpu_count "$gres")
 
+    NODE_HW_CPUS=$cpu_tot
     NODE_HW_SOCKETS=$sockets
     NODE_HW_CORES_PER_SOCKET=$cores_per_socket
     NODE_HW_THREADS_PER_CORE=$threads_per_core
@@ -226,6 +227,7 @@ sample_partition_hardware() {
 
     HW_AVAILABLE=0
     HW_NODE_COUNT=""
+    HW_CPUS=""
     HW_SOCKETS=""
     HW_CORES_PER_SOCKET=""
     HW_THREADS_PER_CORE=""
@@ -249,6 +251,7 @@ sample_partition_hardware() {
         get_node_hardware "$node" || continue
 
         if (( have_reference == 0 )); then
+            HW_CPUS=$NODE_HW_CPUS
             HW_SOCKETS=$NODE_HW_SOCKETS
             HW_CORES_PER_SOCKET=$NODE_HW_CORES_PER_SOCKET
             HW_THREADS_PER_CORE=$NODE_HW_THREADS_PER_CORE
@@ -257,6 +260,7 @@ sample_partition_hardware() {
             HW_GPUS=$NODE_HW_GPUS
             have_reference=1
         else
+            [[ "$HW_CPUS" == "$NODE_HW_CPUS" ]] || return 0
             [[ "$HW_SOCKETS" == "$NODE_HW_SOCKETS" ]] || return 0
             [[ "$HW_CORES_PER_SOCKET" == "$NODE_HW_CORES_PER_SOCKET" ]] || return 0
             [[ "$HW_THREADS_PER_CORE" == "$NODE_HW_THREADS_PER_CORE" ]] || return 0
@@ -602,18 +606,56 @@ emit_account() {
 
         memory_request=""
         memory_source=""
-
-        if [[ -n "$def_mem_per_node" && "$def_mem_per_node" != "UNLIMITED" && "$def_mem_per_node" != "NONE" && -n "$HW_CORES_PER_NODE" && "$HW_CORES_PER_NODE" =~ ^[0-9]+$ && "$HW_CORES_PER_NODE" -gt 0 ]]; then
-            if def_mem_mib=$(memory_to_mib "$def_mem_per_node"); then
-                memory_request=$((def_mem_mib / HW_CORES_PER_NODE))
-                memory_source="DefMemPerNode / cores_per_node"
-            fi
-        fi
-
-        if [[ -z "$memory_request" && -n "$DEF_MEM_PER_CPU" ]]; then
+        memory_unit=""
+        
+        # DefMemPerCPU is already a per-CPU value.
+        # Never derive it from node memory.
+        if [[ -n "$DEF_MEM_PER_CPU" ]]; then
             if def_mem_cpu_mib=$(memory_to_mib "$DEF_MEM_PER_CPU"); then
                 memory_request=$def_mem_cpu_mib
                 memory_source="DefMemPerCPU"
+                memory_unit="cpu"
+            fi
+        fi
+        
+        # If DefMemPerCPU is unavailable, fall back to DefMemPerNode.
+        # Convert node memory into the memory associated with the
+        # scheduler's allocation granularity.
+        if [[ -z "$memory_request" &&
+              -n "$def_mem_per_node" &&
+              "$def_mem_per_node" != "UNLIMITED" &&
+              "$def_mem_per_node" != "NONE" ]]; then
+        
+            if def_mem_mib=$(memory_to_mib "$def_mem_per_node"); then
+                case "$CPU_GRANULARITY" in
+                    cpu)
+                        if [[ -n "$HW_CPUS" && "$HW_CPUS" =~ ^[0-9]+$ && "$HW_CPUS" -gt 0 ]]; then
+                            memory_request=$((def_mem_mib / HW_CPUS))
+                            memory_unit="cpu"
+                            memory_source="DefMemPerNode / cpus_per_node"
+                        fi
+                        ;;
+        
+                    core)
+                        if [[ -n "$HW_CORES_PER_NODE" &&
+                              "$HW_CORES_PER_NODE" =~ ^[0-9]+$ &&
+                              "$HW_CORES_PER_NODE" -gt 0 ]]; then
+                            memory_request=$((def_mem_mib / HW_CORES_PER_NODE))
+                            memory_unit="core"
+                            memory_source="DefMemPerNode / cores_per_node"
+                        fi
+                        ;;
+        
+                    socket)
+                        if [[ -n "$HW_SOCKETS" &&
+                              "$HW_SOCKETS" =~ ^[0-9]+$ &&
+                              "$HW_SOCKETS" -gt 0 ]]; then
+                            memory_request=$((def_mem_mib / HW_SOCKETS))
+                            memory_unit="socket"
+                            memory_source="DefMemPerNode / sockets_per_node"
+                        fi
+                        ;;
+                esac
             fi
         fi
 
@@ -695,7 +737,22 @@ emit_account() {
 
         if [[ -n "$memory_request" ]]; then
             printf '          memory:\n'
-            printf '            per_core_mib: %s\n' "$memory_request"
+        
+            case "$memory_unit" in
+                cpu)
+                    printf '            per_cpu_mib: %s\n' "$memory_request"
+                    ;;
+                core)
+                    printf '            per_core_mib: %s\n' "$memory_request"
+                    ;;
+                socket)
+                    printf '            per_socket_mib: %s\n' "$memory_request"
+                    ;;
+                *)
+                    printf '            mib: %s\n' "$memory_request"
+                    ;;
+            esac
+        
             printf '            source: '
             yaml_quote "$memory_source"
             printf '\n'
