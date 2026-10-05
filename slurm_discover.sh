@@ -48,7 +48,7 @@ set -euo pipefail
 #
 # Expected scripts in the current directory:
 #
-#   slurm-discover.sh
+#   slurm_discover.sh
 #   slurm-resolve-options.sh
 #   slurm-user-info.sh
 #   slurm-yaml2json.sh
@@ -67,7 +67,7 @@ set -euo pipefail
 #
 # Example:
 #
-#   USER_NAME=eualano ./slurm-discover.sh
+#   USER_NAME=eualano ./slurm_discover.sh
 #
 USER_NAME=${USER_NAME:-$(id -un)}
 
@@ -77,7 +77,7 @@ USER_NAME=${USER_NAME:-$(id -un)}
 #
 # Example:
 #
-#   ACCOUNT=d2026d04-065-users ./slurm-discover.sh
+#   ACCOUNT=d2026d04-065-users ./slurm_discover.sh
 #
 ACCOUNT=${ACCOUNT:-}
 
@@ -265,7 +265,7 @@ echo "Created: $OPTIONS_YAML"
 #
 # For example:
 #
-#   ARCHDETECT_SRUN_OPTIONS="--constraint=foo --job-name=eessi-archdetect" ./slurm-discover.sh
+#   ARCHDETECT_SRUN_OPTIONS="--constraint=foo --job-name=eessi-archdetect" ./slurm_discover.sh
 #
 # The variable is intentionally not set here.
 # ----------------------------------------------------------------------------

@@ -5,7 +5,7 @@ This repository contains a collection of Bash/Python utilities for discovering a
 The complete workflow is orchestrated by:
 
 ```bash
-./slurm-discover.sh
+./slurm_discover.sh
 ```
 
 The workflow progressively turns the site-specific Slurm configuration into:
@@ -25,7 +25,7 @@ options-final.yaml
 ## Repository layout
 
 ```text
-slurm-discover.sh
+slurm_discover.sh
 slurm-user-info.sh
 get_slurm_data.sh
 slurm-resolve-options.sh
@@ -33,7 +33,7 @@ slurm-yaml2json.sh
 architecture_collector.sh
 ```
 
-### `slurm-discover.sh`
+### `slurm_discover.sh`
 
 Top-level workflow/orchestrator.
 
@@ -203,7 +203,7 @@ ARCHDETECT_SRUN_OPTIONS
 For example:
 
 ```bash
-ARCHDETECT_SRUN_OPTIONS="--constraint=foo --job-name=eessi-archdetect" ./slurm-discover.sh
+ARCHDETECT_SRUN_OPTIONS="--constraint=foo --job-name=eessi-archdetect" ./slurm_discover.sh
 ```
 
 This is useful for simple site-specific requirements.
@@ -242,7 +242,7 @@ This makes it possible to progressively fill holes.
 For example:
 
 ```bash
-ARCHDETECT_SRUN_OPTIONS="--constraint=gpu-feature" ./slurm-discover.sh
+ARCHDETECT_SRUN_OPTIONS="--constraint=gpu-feature" ./slurm_discover.sh
 ```
 
 Existing successful entries are preserved.
@@ -301,7 +301,7 @@ Therefore `architecture.json` acts as the filter between raw Slurm discovery and
 The normal entry point is:
 
 ```bash
-./slurm-discover.sh
+./slurm_discover.sh
 ```
 
 By default the current Unix user is used.
@@ -309,19 +309,19 @@ By default the current Unix user is used.
 A different user can be selected with:
 
 ```bash
-USER_NAME=eualano ./slurm-discover.sh
+USER_NAME=eualano ./slurm_discover.sh
 ```
 
 An account can optionally be supplied:
 
 ```bash
-USER_NAME=eualano ACCOUNT=d2026d04-065-users ./slurm-discover.sh
+USER_NAME=eualano ACCOUNT=d2026d04-065-users ./slurm_discover.sh
 ```
 
 If architecture detection needs additional Slurm options:
 
 ```bash
-ARCHDETECT_SRUN_OPTIONS="--constraint=foo --job-name=eessi-archdetect" ./slurm-discover.sh
+ARCHDETECT_SRUN_OPTIONS="--constraint=foo --job-name=eessi-archdetect" ./slurm_discover.sh
 ```
 
 ---
@@ -447,7 +447,7 @@ The user running the workflow must have sufficient Slurm/accounting permissions 
 Make the scripts executable:
 
 ```bash
-chmod +x slurm-discover.sh
+chmod +x slurm_discover.sh
 chmod +x slurm-user-info.sh
 chmod +x get_slurm_data.sh
 chmod +x slurm-resolve-options.sh
@@ -458,7 +458,7 @@ chmod +x architecture_collector.sh
 Then run:
 
 ```bash
-./slurm-discover.sh
+./slurm_discover.sh
 ```
 
 ---
