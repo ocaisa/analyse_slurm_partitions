@@ -89,44 +89,45 @@ with open(commands_path, "w", encoding="utf-8") as commands, open(skipped_path, 
             print(f"ERROR: partition {partition_name!r} has no options list", file=sys.stderr)
             sys.exit(1)
 
-        minimum = None
+        # Collect one candidate command per account/QOS option. Some accounts
+        # are not allowed on some partitions, so the caller tries each
+        # candidate in turn until one is accepted.
+        candidates = []
 
         for option in options:
-            if isinstance(option, dict) and isinstance(option.get("minimum"), dict):
-                minimum = option["minimum"]
-                break
+            if not (isinstance(option, dict) and isinstance(option.get("minimum"), dict)):
+                continue
 
-        if minimum is None:
-            print(f"ERROR: partition {partition_name!r} has no minimum allocation", file=sys.stderr)
-            sys.exit(1)
+            cpu_options = option["minimum"].get("cpu_options")
 
-        cpu_options = minimum.get("cpu_options")
+            if not isinstance(cpu_options, dict):
+                continue
 
-        if not isinstance(cpu_options, dict):
-            print(f"ERROR: partition {partition_name!r} minimum allocation has no cpu_options", file=sys.stderr)
-            sys.exit(1)
+            command = None
 
-        command = None
+            ntasks = cpu_options.get("ntasks")
 
-        ntasks = cpu_options.get("ntasks")
+            if isinstance(ntasks, dict) and ntasks.get("command"):
+                command = ntasks["command"]
 
-        if isinstance(ntasks, dict) and ntasks.get("command"):
-            command = ntasks["command"]
+            if command is None:
+                cpus_per_task = cpu_options.get("cpus_per_task")
 
-        if command is None:
-            cpus_per_task = cpu_options.get("cpus_per_task")
+                if isinstance(cpus_per_task, dict) and cpus_per_task.get("valid") and cpus_per_task.get("command"):
+                    command = cpus_per_task["command"]
 
-            if isinstance(cpus_per_task, dict) and cpus_per_task.get("valid") and cpus_per_task.get("command"):
-                command = cpus_per_task["command"]
+            if command and command not in candidates:
+                candidates.append(command)
 
-        if not command:
+        if not candidates:
             print(f"ERROR: partition {partition_name!r} has no usable CPU request command", file=sys.stderr)
             sys.exit(1)
 
-        commands.write(f"{partition_name}\t{command}\n")
+        for command in candidates:
+            commands.write(f"{partition_name}\t{command}\n")
 PY
 
-TOTAL_PARTITIONS=$(wc -l < "$COMMANDS_TSV")
+TOTAL_PARTITIONS=$(cut -f1 "$COMMANDS_TSV" | sort -u | wc -l)
 SKIPPED_PARTITIONS=$(wc -l < "$SKIPPED_TSV")
 FAILED_PARTITIONS=0
 SUCCESSFUL_PARTITIONS=0
@@ -153,13 +154,26 @@ if (( SKIPPED_PARTITIONS > 0 )); then
 fi
 
 if (( TOTAL_PARTITIONS > 0 )); then
+    LAST_PARTITION=""
+    LAST_PARTITION_DONE=false
+
     while IFS=$'\t' read -r PARTITION COMMAND <&3; do
         [[ -n "$PARTITION" ]] || continue
         [[ -n "$COMMAND" ]] || continue
 
+        # Several consecutive lines can belong to one partition (one per
+        # account/QOS). Stop trying once one of them has succeeded.
+        if [[ "$PARTITION" != "$LAST_PARTITION" ]]; then
+            LAST_PARTITION=$PARTITION
+            LAST_PARTITION_DONE=false
+        fi
+
+        [[ "$LAST_PARTITION_DONE" == false ]] || continue
+
         echo "============================================================" >&2
         echo "Architecture detection: $PARTITION" >&2
         echo "Generated srun options: $COMMAND" >&2
+        echo "(candidate for partition $PARTITION; the next account/QOS is tried if this one fails)" >&2
 
         if [[ -n "$ARCHDETECT_SRUN_OPTIONS" ]]; then
             echo "Additional srun options: $ARCHDETECT_SRUN_OPTIONS" >&2
@@ -185,7 +199,6 @@ if (( TOTAL_PARTITIONS > 0 )); then
         set -e
 
         if (( SRUN_STATUS == 124 )); then
-            FAILED_PARTITIONS=$((FAILED_PARTITIONS + 1))
             printf '%s\t%s\t%s\n' "$PARTITION" "timeout" "$OUTPUT" >> "$FAILURES_TSV"
             echo "TIMEOUT: architecture detection exceeded 3 minutes for partition: $PARTITION" >&2
             echo "Skipping partition; it can be retried on a later run." >&2
@@ -194,7 +207,6 @@ if (( TOTAL_PARTITIONS > 0 )); then
         fi
 
         if (( SRUN_STATUS != 0 )); then
-            FAILED_PARTITIONS=$((FAILED_PARTITIONS + 1))
             printf '%s\t%s\t%s\n' "$PARTITION" "$SRUN_STATUS" "$OUTPUT" >> "$FAILURES_TSV"
             echo "ERROR: architecture detection failed for partition: $PARTITION" >&2
             echo "ERROR: srun exit code: $SRUN_STATUS" >&2
@@ -208,7 +220,6 @@ if (( TOTAL_PARTITIONS > 0 )); then
         ACCELERATOR=$(printf '%s\n' "$OUTPUT" | sed -n 's/^__EESSI_ACCEL__//p' | tail -n 1)
 
         if [[ -z "$CPU" ]]; then
-            FAILED_PARTITIONS=$((FAILED_PARTITIONS + 1))
 
             printf '%s\t%s\t%s\n' "$PARTITION" "architecture-detection" "$OUTPUT" >> "$FAILURES_TSV"
 
@@ -228,6 +239,7 @@ if (( TOTAL_PARTITIONS > 0 )); then
         printf '%s\t%s\t%s\n' "$PARTITION" "$CPU" "$ACCELERATOR" >> "$RESULTS_TSV"
 
         SUCCESSFUL_PARTITIONS=$((SUCCESSFUL_PARTITIONS + 1))
+        LAST_PARTITION_DONE=true
 
         echo "SUCCESS: $PARTITION" >&2
         echo "  CPU: $CPU" >&2
@@ -298,6 +310,9 @@ with open(temporary_path, "w", encoding="utf-8") as fh:
 
 os.replace(temporary_path, architecture_path)
 PY
+
+# A partition only counts as failed if every account/QOS candidate failed.
+FAILED_PARTITIONS=$((TOTAL_PARTITIONS - SUCCESSFUL_PARTITIONS))
 
 PROCESSED_PARTITIONS=$((SUCCESSFUL_PARTITIONS + FAILED_PARTITIONS))
 

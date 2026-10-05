@@ -212,6 +212,36 @@ However, if the site requires environment setup or more complicated logic, edit 
 
 A good way to integrate a new cluster is to test architecture detection on **one partition manually first**, then adapt the collector once that command is known to work.
 
+### Account fallback
+
+Not every account may be allowed to use every partition. For each partition,
+`architecture_collector.sh` tries the minimum allocation of every
+account/QOS combination in `options.yaml` in turn and stops at the first one
+that succeeds. A partition only counts as failed if all of them failed.
+
+### Recording how to use EESSI (`eessi.json`)
+
+Some sites need extra `srun` options before EESSI is usable (for example
+`--constraint=eessi` on LUMI, or `_CVMFS_` in the job name on Leonardo), and
+sites recommend specific steps to load EESSI. Since this is independent of the
+partition, `slurm_discover.sh` stores it in a separate `eessi.json`:
+
+```bash
+ARCHDETECT_SRUN_OPTIONS="--constraint=eessi" \
+EESSI_LOAD_COMMANDS=$'module load EESSI/2026.06' \
+./slurm_discover.sh
+```
+
+```json
+{
+  "version": 1,
+  "srun_options": ["--constraint=eessi"],
+  "load_commands": ["module load EESSI/2026.06"]
+}
+```
+
+Values not given in the environment are kept from an existing `eessi.json`.
+
 ---
 
 ## Incremental architecture detection
