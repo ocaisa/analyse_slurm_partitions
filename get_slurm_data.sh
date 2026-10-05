@@ -119,8 +119,12 @@ memory_to_mib() {
 get_gpu_count() {
     local gres=${1:-}
     local item name count total=0
+    local -a _gres_items _gres_parts
 
-    [[ -z "$gres" || "$gres" == "NONE" ]] && { echo 0; return; }
+    [[ -z "$gres" || "$gres" == "NONE" ]] && {
+        echo 0
+        return
+    }
 
     IFS=',' read -r -a _gres_items <<< "$gres"
 
@@ -131,24 +135,37 @@ get_gpu_count() {
         IFS=':' read -r -a _gres_parts <<< "$item"
 
         name=${_gres_parts[0]}
-
         [[ "$name" != "gpu" ]] && continue
 
-        count=1
+        count=""
 
-        if (( ${#_gres_parts[@]} >= 2 )); then
-            if [[ "${_gres_parts[1]}" =~ ^[0-9]+$ ]]; then
-                count=${_gres_parts[1]}
-            elif (( ${#_gres_parts[@]} >= 3 )) && [[ "${_gres_parts[2]}" =~ ^[0-9]+$ ]]; then
-                count=${_gres_parts[2]}
-            fi
+        # Supported forms include:
+        #   gpu:8
+        #   gpu:mi250:8
+        #   gpu:mi250:8(S:0-7)
+        #
+        # The count is the numeric field immediately following
+        # the optional GPU type. Strip any Slurm suffix such as
+        # "(S:0-7)" before validating it.
+
+        if (( ${#_gres_parts[@]} >= 3 )); then
+            count=${_gres_parts[2]}
+        elif (( ${#_gres_parts[@]} >= 2 )); then
+            count=${_gres_parts[1]}
         fi
 
-        total=$((total + count))
+        # Remove Slurm's optional suffix:
+        #   8(S:0-7) -> 8
+        count=${count%%(*}
+
+        if [[ "$count" =~ ^[0-9]+$ ]]; then
+            total=$((total + count))
+        fi
     done
 
     echo "$total"
 }
+
 
 get_node_field() {
     local line=$1
