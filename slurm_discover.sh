@@ -94,6 +94,25 @@ SLURM_JSON=${SLURM_JSON:-slurm.json}
 # discovery options remain available for debugging.
 FINAL_OPTIONS_YAML=${FINAL_OPTIONS_YAML:-options-final.yaml}
 
+# Site-specific information needed to make EESSI available on the cluster.
+#
+# This is partition-independent, so it is stored in its own file rather than
+# in slurm.json.
+EESSI_JSON=${EESSI_JSON:-eessi.json}
+
+# Extra srun options needed to run EESSI on this site (e.g. --constraint=eessi
+# on LUMI, a job name containing _CVMFS_ on Leonardo). These are also used for
+# architecture detection and are recorded in eessi.json.
+ARCHDETECT_SRUN_OPTIONS=${ARCHDETECT_SRUN_OPTIONS:-}
+export ARCHDETECT_SRUN_OPTIONS
+
+# Site-recommended commands to load EESSI (one per line), recorded verbatim in
+# eessi.json. Example:
+#
+#   EESSI_LOAD_COMMANDS=$'module load EESSI/2026.06' ./slurm_discover.sh
+#
+EESSI_LOAD_COMMANDS=${EESSI_LOAD_COMMANDS:-}
+
 # ----------------------------------------------------------------------------
 # Helper functions
 # ----------------------------------------------------------------------------
@@ -298,6 +317,44 @@ step "6/7: Creating filtered generic Slurm JSON"
 echo "Updated: $SLURM_JSON"
 
 # ----------------------------------------------------------------------------
+# Record how EESSI has to be made available on this site.
+#
+# Values that are not supplied in the environment are kept from an existing
+# eessi.json, so rerunning the (checkpointed) workflow does not lose them.
+# ----------------------------------------------------------------------------
+
+python3 - "$EESSI_JSON" "$ARCHDETECT_SRUN_OPTIONS" "$EESSI_LOAD_COMMANDS" <<'PY'
+import json
+import os
+import shlex
+import sys
+
+path, srun_options, load_commands = sys.argv[1:4]
+
+data = {}
+
+if os.path.exists(path):
+    with open(path, "r", encoding="utf-8") as fh:
+        data = json.load(fh)
+
+data["version"] = 1
+
+if srun_options or "srun_options" not in data:
+    data["srun_options"] = shlex.split(srun_options)
+
+if load_commands or "load_commands" not in data:
+    data["load_commands"] = [c for c in load_commands.splitlines() if c.strip()]
+
+with open(path + ".tmp", "w", encoding="utf-8") as fh:
+    json.dump(data, fh, indent=2)
+    fh.write("\n")
+
+os.replace(path + ".tmp", path)
+PY
+
+echo "Created/updated: $EESSI_JSON"
+
+# ----------------------------------------------------------------------------
 # Stage 7: resolve final job options.
 # ----------------------------------------------------------------------------
 #
@@ -332,5 +389,6 @@ printf 'Initial JSON      : %s\n' "$SLURM_JSON"
 printf 'Initial options   : %s\n' "$OPTIONS_YAML"
 printf 'Architecture      : %s\n' "$ARCHITECTURE_JSON"
 printf 'Filtered JSON     : %s\n' "$SLURM_JSON"
+printf 'EESSI settings    : %s\n' "$EESSI_JSON"
 printf 'Final options     : %s\n' "$FINAL_OPTIONS_YAML"
 printf '\n'
