@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-USER_NAME=${USER:?USER is not set}
+USER_NAME=${1:-${USER:?USER is not set}}
 ACCOUNT=${ACCOUNT:-}
 
 printf '{\n'
